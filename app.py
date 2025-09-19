@@ -380,22 +380,30 @@ def main():
     # Display filtered data
     st.write("### Filtered Perpetual Futures Data")
     
-    # Simple color scheme for better readability
+    # Color code trends and SMA signals for better visualization
     def color_trend(val):
-        if val in ['STRONG_UP', 'UP']:
-            return 'background-color: #E8F5E8'  # Very light green
-        elif val in ['STRONG_DOWN', 'DOWN']:
-            return 'background-color: #FFF0F0'  # Very light red
+        if val == 'STRONG_UP':
+            return ''  # Light green
+        elif val == 'UP':
+            return ''  # Pale green
+        elif val == 'STRONG_DOWN':
+            return ''  # Light pink
+        elif val == 'DOWN':
+            return ''  # Pink
         else:
-            return ''  # No color for neutral
+            return ''  # Light gray
     
     def color_sma_signal(val):
         if val == 'BULLISH':
-            return 'background-color: #E8F5E8'  # Very light green
+            return ''  # Light green
         elif val == 'BEARISH':
-            return 'background-color: #FFF0F0'  # Very light red
+            return ''  # Light pink
+        elif val == 'MIXED_UP':
+            return ''  # Light yellow
+        elif val == 'MIXED_DOWN':
+            return ''  # Moccasin
         else:
-            return ''  # No color for mixed/neutral signals
+            return ''  # Light gray
     
     # Apply styling
     styled_df = filtered_df.style.applymap(color_trend, subset=['Trend_5x5']).applymap(color_sma_signal, subset=['SMA_Signal'])
