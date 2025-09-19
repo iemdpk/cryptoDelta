@@ -10,7 +10,7 @@ from datetime import datetime
 # ----------------- Delta Exchange API -----------------
 class DeltaExchangeAPI:
     def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None):
-        self.base_url = "https://api.delta.exchange"  # Updated to standard API
+        self.base_url = "https://api.delta.exchange"  # Standard API
         self.api_key = api_key
         self.api_secret = api_secret
         self.valid_symbols = self._get_valid_symbols()  # Fetch valid symbols
@@ -92,16 +92,16 @@ class DeltaExchangeAPI:
             st.error(f"Request Error: {e}")
             return pd.DataFrame()
 
-    def get_candles(self, symbol: str, resolution: str = "1m", limit: int = 3) -> pd.DataFrame:
+    def get_candles(self, symbol: str, resolution: str = "5m", limit: int = 3) -> pd.DataFrame:
         """Fetch OHLCV candles for a symbol with start and end timestamps"""
         if symbol not in self.valid_symbols:
             st.warning(f"Invalid symbol: {symbol}. Valid symbols: {self.valid_symbols[:10]}...")
             return pd.DataFrame()
 
         path = "/v2/history/candles"
-        # Calculate start and end times (last 3 minutes for 1m candles)
+        # Calculate start and end times (last 15 minutes for 5m candles)
         end_time = int(time.time())
-        start_time = end_time - (limit * 60)  # 1 minute per candle * limit
+        start_time = end_time - (limit * 300)  # 5 minutes per candle * limit
         params = {
             "symbol": symbol,
             "resolution": resolution,
@@ -128,7 +128,7 @@ class DeltaExchangeAPI:
 
     def get_last3_candle_signal(self, symbol: str) -> str:
         """Check last 3 candles trend"""
-        df = self.get_candles(symbol, resolution="1m", limit=3)
+        df = self.get_candles(symbol, resolution="5m", limit=3)
         if df.empty or len(df) < 3:
             return "NEUTRAL"
         
@@ -251,8 +251,9 @@ def apply_filters(df, filters):
             filtered_df = filtered_df[filtered_df[column].str.contains(config['value'], case=False, na=False)]
     return filtered_df
 
-# ----------------- Load Data -----------------
-tickers_df, products_df = load_data()
+# ----------------- Load Data with Loader -----------------
+with st.spinner("Loading data..."):
+    tickers_df, products_df = load_data()
 
 # ----------------- Sidebar Filters -----------------
 st.sidebar.header("Filters")
