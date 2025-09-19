@@ -447,5 +447,5 @@ def main():
     st.write("- *SMA(10)*: Simple Moving Average of all 10 candles")
     st.write("- *Volatility*: (High - Low) / Close Price × 100%")
 
-if _name_ == "_main_":
+if __name__ == "__main__":  
     main()
