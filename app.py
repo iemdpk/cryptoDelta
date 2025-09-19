@@ -4,12 +4,11 @@ import requests
 import hashlib
 import hmac
 import time
-import io
 from typing import Optional, List, Dict
 
 # Delta Exchange API Client
 class DeltaExchangeAPI:
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None):
+    def _init_(self, api_key: Optional[str] = None, api_secret: Optional[str] = None):
         self.base_url = "https://api.delta.exchange"
         self.api_key = api_key
         self.api_secret = api_secret
@@ -259,7 +258,7 @@ class DeltaExchangeAPI:
 # Streamlit App
 def main():
     st.title("Delta Exchange Perpetual Futures Data - Enhanced")
-    st.write("*Now analyzing trends based on last 5 candles from 10 fetched candles*")
+    st.write("Now analyzing trends based on last 5 candles from 10 fetched candles")
     
     # Initialize client
     client = DeltaExchangeAPI()
@@ -383,35 +382,15 @@ def main():
     
     # Color code trends and SMA signals for better visualization
     def color_trend(val):
-        if val == 'STRONG_UP':
-            return 'background-color: #90EE90'  # Light green
-        elif val == 'UP':
-            return 'background-color: #98FB98'  # Pale green
-        elif val == 'STRONG_DOWN':
-            return 'background-color: #FFB6C1'  # Light pink
-        elif val == 'DOWN':
-            return 'background-color: #FFC1CC'  # Pink
-        else:
-            return 'background-color: #D3D3D3'  # Light gray
-    
+        return ''
+        
     def color_sma_signal(val):
-        if val == 'BULLISH':
-            return 'background-color: #90EE90'  # Light green
-        elif val == 'BEARISH':
-            return 'background-color: #FFB6C1'  # Light pink
-        elif val == 'MIXED_UP':
-            return 'background-color: #FFFFE0'  # Light yellow
-        elif val == 'MIXED_DOWN':
-            return 'background-color: #FFE4B5'  # Moccasin
-        else:
-            return 'background-color: #D3D3D3'  # Light gray
-    
+        return ''
     # Select only the desired columns for display
     selected_columns = ["Name", "Last_Price", "SMA_Signal", "Trend_5x5", "24h_Change", "24h_Volume", "24h_Volume_Short"]
     # Ensure only existing columns are selected to avoid KeyError
     selected_columns = [col for col in selected_columns if col in filtered_df.columns]
-    display_df = filtered_df[selected_columns]
-    styled_df = display_df.style.applymap(color_trend, subset=['Trend_5x5']).applymap(color_sma_signal, subset=['SMA_Signal'])
+    styled_df = filtered_df[selected_columns].style.applymap(color_trend, subset=['Trend_5x5']).applymap(color_sma_signal, subset=['SMA_Signal'])
     
     # Display the DataFrame with only the selected columns
     st.dataframe(
@@ -428,26 +407,6 @@ def main():
         }
     )
     
-    # Download button for Excel with auto-enabled filters
-    if not display_df.empty:
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            # Write the filtered and sorted DataFrame (only displayed columns) to Excel
-            display_df.to_excel(writer, sheet_name='Filtered Data', index=False)
-            # Get the xlsxwriter workbook and worksheet
-            workbook = writer.book
-            worksheet = writer.sheets['Filtered Data']
-            # Apply auto-filter to all columns
-            worksheet.autofilter(0, 0, len(display_df) - 1, len(selected_columns) - 1)
-        buffer.seek(0)
-        
-        st.download_button(
-            label="Download Filtered Data as Excel",
-            data=buffer,
-            file_name='filtered_perpetual_futures_data.xlsx',
-            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
-    
     # Display trend and SMA signal distributions
     if len(filtered_df) > 0:
         col1, col2 = st.columns(2)
@@ -463,30 +422,30 @@ def main():
             st.bar_chart(sma_counts)
     
     st.write("---")
-    st.write("**Legend:**")
+    st.write("*Legend:*")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.write("**Candle Trends:**")
-        st.write("- **STRONG_UP**: 4+ green candles out of 5")
-        st.write("- **UP**: 3 green candles, ≤2 red candles")
-        st.write("- **STRONG_DOWN**: 4+ red candles out of 5")
-        st.write("- **DOWN**: 3 red candles, ≤2 green candles")
-        st.write("- **NEUTRAL**: Mixed pattern")
+        st.write("*Candle Trends:*")
+        st.write("- *STRONG_UP*: 4+ green candles out of 5")
+        st.write("- *UP*: 3 green candles, ≤2 red candles")
+        st.write("- *STRONG_DOWN*: 4+ red candles out of 5")
+        st.write("- *DOWN*: 3 red candles, ≤2 green candles")
+        st.write("- *NEUTRAL*: Mixed pattern")
     
     with col2:
-        st.write("**SMA Signals:**")
-        st.write("- **BULLISH**: Price > SMA(5) > SMA(10)")
-        st.write("- **BEARISH**: Price < SMA(5) < SMA(10)")
-        st.write("- **MIXED_UP**: Price > SMA(5), but SMA(5) < SMA(10)")
-        st.write("- **MIXED_DOWN**: Price < SMA(5), but SMA(5) > SMA(10)")
-        st.write("- **NEUTRAL**: Other combinations")
+        st.write("*SMA Signals:*")
+        st.write("- *BULLISH*: Price > SMA(5) > SMA(10)")
+        st.write("- *BEARISH*: Price < SMA(5) < SMA(10)")
+        st.write("- *MIXED_UP*: Price > SMA(5), but SMA(5) < SMA(10)")
+        st.write("- *MIXED_DOWN*: Price < SMA(5), but SMA(5) > SMA(10)")
+        st.write("- *NEUTRAL*: Other combinations")
     
-    st.write("**Technical Details:**")
-    st.write("- **SMA(5)**: Simple Moving Average of last 5 candles")
-    st.write("- **SMA(10)**: Simple Moving Average of all 10 candles")
-    st.write("- **Volatility**: (High - Low) / Close Price × 100%")
+    st.write("*Technical Details:*")
+    st.write("- *SMA(5)*: Simple Moving Average of last 5 candles")
+    st.write("- *SMA(10)*: Simple Moving Average of all 10 candles")
+    st.write("- *Volatility*: (High - Low) / Close Price × 100%")
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     main()
