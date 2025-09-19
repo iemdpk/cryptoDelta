@@ -362,10 +362,6 @@ def main():
     numeric_cols_to_drop = ['Last_Price_num', '24h_Change_num', '24h_Volume_num', 'Volatility_24h_num', 'SMA_5_num', 'SMA_10_num']
     filtered_df = filtered_df.drop([col for col in numeric_cols_to_drop if col in filtered_df.columns], axis=1)
     
-    # Select only the desired columns for display
-    selected_columns = ["Name", "Last_Price", "SMA_Signal", "Trend_5x5", "24h_Change", "24h_Volume", "24h_Volume_Short"]
-    styled_df = filtered_df[selected_columns].style.applymap(color_trend, subset=['Trend_5x5']).applymap(color_sma_signal, subset=['SMA_Signal'])
-    
     # Display summary statistics
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -387,27 +383,33 @@ def main():
     # Color code trends and SMA signals for better visualization
     def color_trend(val):
         if val == 'STRONG_UP':
-            return ''  # Light green
+            return 'background-color: #90EE90'  # Light green
         elif val == 'UP':
-            return ''  # Pale green
+            return 'background-color: #98FB98'  # Pale green
         elif val == 'STRONG_DOWN':
-            return ''  # Light pink
+            return 'background-color: #FFB6C1'  # Light pink
         elif val == 'DOWN':
-            return ''  # Pink
+            return 'background-color: #FFC1CC'  # Pink
         else:
-            return ''  # Light gray
+            return 'background-color: #D3D3D3'  # Light gray
     
     def color_sma_signal(val):
         if val == 'BULLISH':
-            return ''  # Light green
+            return 'background-color: #90EE90'  # Light green
         elif val == 'BEARISH':
-            return ''  # Light pink
+            return 'background-color: #FFB6C1'  # Light pink
         elif val == 'MIXED_UP':
-            return ''  # Light yellow
+            return 'background-color: #FFFFE0'  # Light yellow
         elif val == 'MIXED_DOWN':
-            return ''  # Moccasin
+            return 'background-color: #FFE4B5'  # Moccasin
         else:
-            return ''  # Light gray
+            return 'background-color: #D3D3D3'  # Light gray
+    
+    # Select only the desired columns for display
+    selected_columns = ["Name", "Last_Price", "SMA_Signal", "Trend_5x5", "24h_Change", "24h_Volume", "24h_Volume_Short"]
+    # Ensure only existing columns are selected to avoid KeyError
+    selected_columns = [col for col in selected_columns if col in filtered_df.columns]
+    styled_df = filtered_df[selected_columns].style.applymap(color_trend, subset=['Trend_5x5']).applymap(color_sma_signal, subset=['SMA_Signal'])
     
     # Display the DataFrame with only the selected columns
     st.dataframe(
