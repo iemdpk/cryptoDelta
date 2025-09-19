@@ -415,7 +415,7 @@ def main():
             "Name": st.column_config.TextColumn("Symbol", width="medium"),
             "Last_Price": st.column_config.NumberColumn("Last Price", format="%.4f"),
             "SMA_Signal": st.column_config.TextColumn("SMA Signal", width="small"),
-            "Trend_5x5": st.column_config.TextColumn("5-Candle Trend", width="medium")
+            "Trend_5x5": st.column_config.TextColumn("5-Candle Trend", width="medium"),
             "24h_Change": st.column_config.NumberColumn("24h Change (%)", format="%+.2f"),
             "24h_Volume": st.column_config.NumberColumn("24h Volume", format="%.0f"),
             "24h_Volume_Short": st.column_config.TextColumn("Volume (Short)", width="small"),
