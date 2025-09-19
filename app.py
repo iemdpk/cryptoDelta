@@ -414,16 +414,11 @@ def main():
         column_config={
             "Name": st.column_config.TextColumn("Symbol", width="medium"),
             "Last_Price": st.column_config.NumberColumn("Last Price", format="%.4f"),
-            "SMA_5": st.column_config.NumberColumn("SMA(5)", format="%.4f"),
-            "SMA_10": st.column_config.NumberColumn("SMA(10)", format="%.4f"),
             "SMA_Signal": st.column_config.TextColumn("SMA Signal", width="small"),
-            "High_24h": st.column_config.NumberColumn("24h High", format="%.4f"),
-            "Low_24h": st.column_config.NumberColumn("24h Low", format="%.4f"),
+            "Trend_5x5": st.column_config.TextColumn("5-Candle Trend", width="medium")
             "24h_Change": st.column_config.NumberColumn("24h Change (%)", format="%+.2f"),
-            "Volatility_24h": st.column_config.NumberColumn("Volatility (%)", format="%.2f"),
             "24h_Volume": st.column_config.NumberColumn("24h Volume", format="%.0f"),
             "24h_Volume_Short": st.column_config.TextColumn("Volume (Short)", width="small"),
-            "Trend_5x5": st.column_config.TextColumn("5-Candle Trend", width="medium")
         }
     )
     
