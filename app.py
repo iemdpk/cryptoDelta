@@ -395,7 +395,7 @@ def main():
     # Display the DataFrame with only the selected columns
     st.dataframe(
         styled_df,
-        use_container_width=True,
+        use_container_width=False,
         column_config={
             "Name": st.column_config.TextColumn("Symbol", width="medium"),
             "Last_Price": st.column_config.NumberColumn("Last Price", format="%.4f"),
