@@ -4,6 +4,7 @@ import requests
 import hashlib
 import hmac
 import time
+import io
 from typing import Optional, List, Dict
 
 # Delta Exchange API Client
@@ -382,15 +383,35 @@ def main():
     
     # Color code trends and SMA signals for better visualization
     def color_trend(val):
-        return ''
-        
+        if val == 'STRONG_UP':
+            return 'background-color: #90EE90'  # Light green
+        elif val == 'UP':
+            return 'background-color: #98FB98'  # Pale green
+        elif val == 'STRONG_DOWN':
+            return 'background-color: #FFB6C1'  # Light pink
+        elif val == 'DOWN':
+            return 'background-color: #FFC1CC'  # Pink
+        else:
+            return 'background-color: #D3D3D3'  # Light gray
+    
     def color_sma_signal(val):
-        return ''
+        if val == 'BULLISH':
+            return 'background-color: #90EE90'  # Light green
+        elif val == 'BEARISH':
+            return 'background-color: #FFB6C1'  # Light pink
+        elif val == 'MIXED_UP':
+            return 'background-color: #FFFFE0'  # Light yellow
+        elif val == 'MIXED_DOWN':
+            return 'background-color: #FFE4B5'  # Moccasin
+        else:
+            return 'background-color: #D3D3D3'  # Light gray
+    
     # Select only the desired columns for display
     selected_columns = ["Name", "Last_Price", "SMA_Signal", "Trend_5x5", "24h_Change", "24h_Volume", "24h_Volume_Short"]
     # Ensure only existing columns are selected to avoid KeyError
     selected_columns = [col for col in selected_columns if col in filtered_df.columns]
-    styled_df = filtered_df[selected_columns].style.applymap(color_trend, subset=['Trend_5x5']).applymap(color_sma_signal, subset=['SMA_Signal'])
+    display_df = filtered_df[selected_columns]
+    styled_df = display_df.style.applymap(color_trend, subset=['Trend_5x5']).applymap(color_sma_signal, subset=['SMA_Signal'])
     
     # Display the DataFrame with only the selected columns
     st.dataframe(
@@ -406,6 +427,26 @@ def main():
             "24h_Volume_Short": st.column_config.TextColumn("Volume (Short)"),
         }
     )
+    
+    # Download button for Excel with auto-enabled filters
+    if not display_df.empty:
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            # Write the filtered and sorted DataFrame (only displayed columns) to Excel
+            display_df.to_excel(writer, sheet_name='Filtered Data', index=False)
+            # Get the xlsxwriter workbook and worksheet
+            workbook = writer.book
+            worksheet = writer.sheets['Filtered Data']
+            # Apply auto-filter to all columns
+            worksheet.autofilter(0, 0, len(display_df) - 1, len(selected_columns) - 1)
+        buffer.seek(0)
+        
+        st.download_button(
+            label="Download Filtered Data as Excel",
+            data=buffer,
+            file_name='filtered_perpetual_futures_data.xlsx',
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
     
     # Display trend and SMA signal distributions
     if len(filtered_df) > 0:
