@@ -318,10 +318,10 @@ def main():
     
     # Color functions
     def color_trend(val):
-        if val == "STRONG_UP": return "background-color: lightgreen"
-        if val == "UP": return "background-color: palegreen"
-        if val == "STRONG_DOWN": return "background-color: lightcoral"
-        if val == "DOWN": return "background-color: salmon"
+        if val == "STRONG_UP": return "color: lightgreen; font-weight: bold"
+        if val == "UP": return "color: palegreen; font-weight: bold"
+        if val == "STRONG_DOWN": return "color: lightcoral; font-weight: bold"
+        if val == "DOWN": return "color: salmon; font-weight: bold"
         return ""
     
     def color_sma_signal(val):
