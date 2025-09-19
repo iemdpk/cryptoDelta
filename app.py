@@ -6,13 +6,14 @@ import hmac
 import time
 from typing import Optional, List, Dict
 
-# Delta Exchange API Client (unchanged from original)
+# Delta Exchange API Client
 class DeltaExchangeAPI:
     def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None):
         self.base_url = "https://api.delta.exchange"
         self.api_key = api_key
         self.api_secret = api_secret
-        self.valid_symbols = self._get_valid_symbols()
+        with st.spinner("Fetching valid symbols..."):
+            self.valid_symbols = self._get_valid_symbols()
 
     def generate_signature(self, secret: str, message: str) -> str:
         message = bytes(message, 'utf-8')
@@ -65,18 +66,19 @@ class DeltaExchangeAPI:
         if query_string:
             query_string = "?" + query_string
         headers = self.get_headers("GET", path, query_string)
-        try:
-            response = requests.get(f"{self.base_url}{path}", params=params, headers=headers, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            if data.get('success'):
-                return self._format_ticker_data(data['result'])
-            else:
-                st.error(f"API Error: {data}")
+        with st.spinner("Fetching ticker data..."):
+            try:
+                response = requests.get(f"{self.base_url}{path}", params=params, headers=headers, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+                if data.get('success'):
+                    return self._format_ticker_data(data['result'])
+                else:
+                    st.error(f"API Error: {data}")
+                    return pd.DataFrame()
+            except requests.exceptions.RequestException as e:
+                st.error(f"Request Error: {e}")
                 return pd.DataFrame()
-        except requests.exceptions.RequestException as e:
-            st.error(f"Request Error: {e}")
-            return pd.DataFrame()
 
     def get_perpetual_data(self) -> pd.DataFrame:
         return self.get_tickers(contract_types="perpetual_futures")
@@ -97,18 +99,19 @@ class DeltaExchangeAPI:
         }
         query_string = "&".join([f"{k}={v}" for k, v in params.items()])
         headers = self.get_headers("GET", path, query_string)
-        try:
-            response = requests.get(f"{self.base_url}{path}", params=params, headers=headers, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            if data.get("success"):
-                return data["result"]
-            else:
-                st.error(f"API Error for {symbol}: {data}")
+        with st.spinner(f"Fetching candles for {symbol}..."):
+            try:
+                response = requests.get(f"{self.base_url}{path}", params=params, headers=headers, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+                if data.get("success"):
+                    return data["result"]
+                else:
+                    st.error(f"API Error for {symbol}: {data}")
+                    return []
+            except requests.exceptions.RequestException as e:
+                st.error(f"Request Error for {symbol}: {e}")
                 return []
-        except requests.exceptions.RequestException as e:
-            st.error(f"Request Error for {symbol}: {e}")
-            return []
 
     def get_trend_last3(self, symbol: str) -> str:
         candles = self.get_candles(symbol, resolution="5m", limit=3)
