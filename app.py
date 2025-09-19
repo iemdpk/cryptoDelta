@@ -397,13 +397,13 @@ def main():
         styled_df,
         use_container_width=False,
         column_config={
-            "Name": st.column_config.TextColumn("Symbol", width="medium"),
+            "Name": st.column_config.TextColumn("Symbol"),
             "Last_Price": st.column_config.NumberColumn("Last Price", format="%.4f"),
-            "SMA_Signal": st.column_config.TextColumn("SMA Signal", width="small"),
-            "Trend_5x5": st.column_config.TextColumn("5-Candle Trend", width="medium"),
+            "SMA_Signal": st.column_config.TextColumn("SMA Signal"),
+            "Trend_5x5": st.column_config.TextColumn("5-Candle Trend"),
             "24h_Change": st.column_config.NumberColumn("24h Change (%)", format="%+.2f"),
             "24h_Volume": st.column_config.NumberColumn("24h Volume", format="%.0f"),
-            "24h_Volume_Short": st.column_config.TextColumn("Volume (Short)", width="small"),
+            "24h_Volume_Short": st.column_config.TextColumn("Volume (Short)"),
         }
     )
     
