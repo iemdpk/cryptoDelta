@@ -15,6 +15,7 @@ class DeltaExchangeAPI:
         progress_bar = st.progress(0, text="Initializing: Fetching valid symbols...")
         self.valid_symbols = self._get_valid_symbols()
         progress_bar.progress(100, text="Valid symbols fetched successfully!")
+        progress_bar.empty()
 
     def generate_signature(self, secret: str, message: str) -> str:
         message = bytes(message, 'utf-8')
@@ -52,6 +53,7 @@ class DeltaExchangeAPI:
             response.raise_for_status()
             data = response.json()
             progress_bar.progress(100, text="Symbols fetched successfully!")
+            progress_bar.empty()
             if data.get('success'):
                 return [ticker.get('symbol', 'N/A') for ticker in data['result']]
             else:
@@ -78,6 +80,7 @@ class DeltaExchangeAPI:
             response.raise_for_status()
             data = response.json()
             progress_bar.progress(100, text="Ticker data fetched successfully!")
+            progress_bar.empty()
             if data.get('success'):
                 return self._format_ticker_data(data['result'])
             else:
@@ -114,6 +117,7 @@ class DeltaExchangeAPI:
             response.raise_for_status()
             data = response.json()
             progress_bar.progress(100, text=f"Candles for {symbol} fetched successfully!")
+            progress_bar.empty()
             if data.get("success"):
                 return data["result"]
             else:
@@ -144,6 +148,17 @@ class DeltaExchangeAPI:
         else:
             return "NEUTRAL"
 
+    def _format_volume_short(self, volume: float) -> str:
+        """Convert volume to short format with k, m, b suffixes."""
+        if volume >= 1_000_000_000:
+            return f"{volume / 1_000_000_000:.1f}b"
+        elif volume >= 1_000_000:
+            return f"{volume / 1_000_000:.1f}m"
+        elif volume >= 1_000:
+            return f"{volume / 1_000:.1f}k"
+        else:
+            return f"{volume:.0f}"
+
     def _format_ticker_data(self, tickers: List[Dict]) -> pd.DataFrame:
         formatted_data = []
         total_tickers = len(tickers)
@@ -162,9 +177,10 @@ class DeltaExchangeAPI:
                 time.sleep(0.5)
                 formatted_data.append({
                     'Name': str(symbol),
-                    'Last_Price': f"${close_price:,.4f}",
-                    '24h_Change_%': f"{change_pct:+.2f}%",
-                    '24h_Volume': f"${volume:,.0f}",
+                    'Last_Price': f"{close_price:,.4f}",  # Removed $
+                    '24h_Change': f"{change_pct:+.2f}",   # Removed %
+                    '24h_Volume': f"{volume:,.0f}",       # Removed $
+                    '24h_Volume_Short': self._format_volume_short(volume),  # New column
                     'Trend_3x3': trend
                 })
                 # Update progress bar
@@ -174,6 +190,7 @@ class DeltaExchangeAPI:
                 st.error(f"Error processing ticker {symbol}: {e}")
                 continue
         progress_bar.progress(100, text="Ticker data formatting complete!")
+        progress_bar.empty()
         return pd.DataFrame(formatted_data)
 
     def _safe_float(self, value) -> float:
@@ -196,6 +213,7 @@ def main():
     progress_bar.progress(50, text="Processing perpetual futures data...")
     df = client.get_perpetual_data()
     progress_bar.progress(100, text="Perpetual futures data fetched successfully!")
+    progress_bar.empty()
     
     if df.empty:
         st.error("No data available")
@@ -205,24 +223,24 @@ def main():
     st.sidebar.header("Filters")
     
     # Digit range filter
-    min_digits = st.sidebar.number_input("Minimum Last Price ($)", min_value=0.0, value=0.0, step=0.0001)
-    max_digits = st.sidebar.number_input("Maximum Last Price ($)", min_value=0.0, value=1000000.0, step=0.0001)
+    min_digits = st.sidebar.number_input("Minimum Last Price", min_value=0.0, value=0.0, step=0.0001)
+    max_digits = st.sidebar.number_input("Maximum Last Price", min_value=0.0, value=1000000.0, step=0.0001)
     
     # Sort order
-    sort_order = st.sidebar.selectbox("Sort 24h Change %", ["Ascending", "Descending"])
+    sort_order = st.sidebar.selectbox("Sort 24h Change", ["Ascending", "Descending"])
     
     # Apply filters
     filtered_df = df.copy()
     
     # Convert Last_Price to float for filtering
-    filtered_df['Last_Price_num'] = filtered_df['Last_Price'].str.replace('$', '').str.replace(',', '').astype(float)
+    filtered_df['Last_Price_num'] = filtered_df['Last_Price'].str.replace(',', '').astype(float)
     filtered_df = filtered_df[
         (filtered_df['Last_Price_num'] >= min_digits) & 
         (filtered_df['Last_Price_num'] <= max_digits)
     ]
     
-    # Convert 24h_Change_% to float for sorting
-    filtered_df['24h_Change_num'] = filtered_df['24h_Change_%'].str.replace('%', '').astype(float)
+    # Convert 24h_Change to float for sorting
+    filtered_df['24h_Change_num'] = filtered_df['24h_Change'].astype(float)
     
     # Apply sorting
     if sort_order == "Ascending":
@@ -236,7 +254,7 @@ def main():
     # Display filtered data
     st.write("### Filtered Perpetual Futures Data")
     st.dataframe(
-        filtered_df[['Name', 'Last_Price', '24h_Change_%', '24h_Volume', 'Trend_3x3']],
+        filtered_df[['Name', 'Last_Price', '24h_Change', '24h_Volume', '24h_Volume_Short', 'Trend_3x3']],
         use_container_width=True
     )
     
