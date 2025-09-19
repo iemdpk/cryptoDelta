@@ -4,206 +4,165 @@ import pandas as pd
 import hashlib
 import hmac
 import time
-from typing import Optional, List, Dict
+from typing import Optional
 from datetime import datetime
 
 # ----------------- Delta Exchange API -----------------
 class DeltaExchangeAPI:
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None):
-        self.base_url = "https://api.india.delta.exchange"
-        self.api_key = api_key
-        self.api_secret = api_secret
+    def __init__(self):
+        self.base_url = "https://api.delta.exchange"
 
-    def generate_signature(self, secret: str, message: str) -> str:
-        message = bytes(message, 'utf-8')
-        secret = bytes(secret, 'utf-8')
-        return hmac.new(secret, message, hashlib.sha256).hexdigest()
+    def get_headers(self, method: str, path: str, body: str = "") -> dict:
+        return {}
 
-    def get_headers(self, method: str, path: str, query_string: str = "", payload: str = "") -> Dict[str, str]:
-        headers = {'Content-Type': 'application/json', 'User-Agent': 'python-delta-client'}
-        if self.api_key and self.api_secret:
-            timestamp = str(int(time.time()))
-            signature_data = method + timestamp + path + query_string + payload
-            signature = self.generate_signature(self.api_secret, signature_data)
-            headers.update({'api-key': self.api_key, 'timestamp': timestamp, 'signature': signature})
-        return headers
-
-    def get_tickers(self, contract_types: Optional[str] = None) -> pd.DataFrame:
+    def get_tickers(self) -> pd.DataFrame:
         path = "/v2/tickers"
-        params = {}
-        if contract_types:
-            params['contract_types'] = contract_types
-        headers = self.get_headers("GET", path)
         try:
-            response = requests.get(f"{self.base_url}{path}", params=params, headers=headers, timeout=10)
+            response = requests.get(f"{self.base_url}{path}", timeout=10)
             response.raise_for_status()
             data = response.json()
-            if data.get('success'):
-                return self._format_ticker_data(data['result'])
-            else:
-                st.error(f"API Error: {data}")
-                return pd.DataFrame()
-        except requests.exceptions.RequestException as e:
-            st.error(f"Request Error: {e}")
+            if data.get('success') and data.get('result'):
+                return pd.DataFrame(data['result'])
+            return pd.DataFrame()
+        except requests.exceptions.RequestException:
             return pd.DataFrame()
 
     def get_products(self) -> pd.DataFrame:
         path = "/v2/products"
-        headers = self.get_headers("GET", path)
         try:
-            response = requests.get(f"{self.base_url}{path}", headers=headers, timeout=10)
+            response = requests.get(f"{self.base_url}{path}", timeout=10)
             response.raise_for_status()
             data = response.json()
-            if data.get('success'):
-                return self._format_products_data(data['result'])
-            else:
-                st.error(f"API Error: {data}")
-                return pd.DataFrame()
-        except requests.exceptions.RequestException as e:
-            st.error(f"Request Error: {e}")
+            if data.get('success') and data.get('result'):
+                return pd.DataFrame(data['result'])
+            return pd.DataFrame()
+        except requests.exceptions.RequestException:
             return pd.DataFrame()
 
-    def _safe_float(self, value) -> float:
+    def get_candles(self, symbol: str, resolution: str = "1m", limit: int = 3) -> pd.DataFrame:
+        path = f"/v2/history/candles"
+        params = {"symbol": symbol, "resolution": resolution, "limit": limit}
         try:
-            return float(value)
-        except (ValueError, TypeError):
-            return 0.0
-
-    def _format_ticker_data(self, tickers: List[Dict]) -> pd.DataFrame:
-        formatted_data = []
-        for ticker in tickers:
-            close_price = self._safe_float(ticker.get('close', 0))
-            open_price = self._safe_float(ticker.get('open', 0))
-            volume = self._safe_float(ticker.get('volume', 0))
-            oi = self._safe_float(ticker.get('oi', 0))
-            oi_value = self._safe_float(ticker.get('oi_value', 0))
-            high = self._safe_float(ticker.get('high', 0))
-            low = self._safe_float(ticker.get('low', 0))
-            mark_price = self._safe_float(ticker.get('mark_price', 0))
-            change_pct = ((close_price - open_price)/open_price * 100) if open_price else 0
-            change_abs = close_price - open_price if open_price else 0
-            quotes = ticker.get('quotes', {}) or {}
-            best_bid = self._safe_float(quotes.get('best_bid', 0))
-            best_ask = self._safe_float(quotes.get('best_ask', 0))
-
-            # Volume display with K, M, B
-            if volume >= 1e9:
-                vol_display = f"{volume/1e9:.2f}B"
-            elif volume >= 1e6:
-                vol_display = f"{volume/1e6:.2f}M"
-            elif volume >= 1e3:
-                vol_display = f"{volume/1e3:.2f}K"
+            response = requests.get(f"{self.base_url}{path}", params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            if data.get('success') and data.get('result'):
+                return pd.DataFrame(data['result'])
             else:
-                vol_display = f"{volume:.2f}"
+                return pd.DataFrame()
+        except requests.exceptions.RequestException:
+            return pd.DataFrame()
 
-            formatted_data.append({
-                'Symbol': ticker.get('symbol', 'N/A'),
-                'Contract_Type': ticker.get('contract_type', 'N/A'),
-                'Last_Price': close_price,
-                '24h_Change_%': change_pct,
-                '24h_Change_Abs': change_abs,
-                '24h_Volume': volume,
-                'Volume_Display': vol_display,
-                'Open_Interest': oi,
-                'OI_Value': oi_value,
-                'Mark_Price': mark_price,
-                'High_24h': high,
-                'Low_24h': low,
-                'Open_Price': open_price,
-                'Best_Bid': best_bid,
-                'Best_Ask': best_ask,
-                'Spread': best_ask - best_bid if best_ask > 0 and best_bid > 0 else 0,
-                'Underlying_Asset': ticker.get('underlying_asset', {}).get('symbol', 'N/A') if ticker.get('underlying_asset') else 'N/A'
-            })
-        return pd.DataFrame(formatted_data)
+    def get_last3_candle_signal(self, symbol: str, resolution: str = "1m") -> str:
+        df = self.get_candles(symbol, resolution=resolution, limit=3)
+        if df.empty or len(df) < 3:
+            return "NEUTRAL"
+        
+        colors = []
+        for _, row in df.iterrows():
+            if row['close'] > row['open']:
+                colors.append("GREEN")
+            elif row['close'] < row['open']:
+                colors.append("RED")
+            else:
+                colors.append("NEUTRAL")
 
-    def _format_products_data(self, products: List[Dict]) -> pd.DataFrame:
-        formatted_data = []
-        for product in products:
-            maker_rate = self._safe_float(product.get('maker_commission_rate', 0))
-            taker_rate = self._safe_float(product.get('taker_commission_rate', 0))
-            formatted_data.append({
-                'Product_ID': product.get('id'),
-                'Symbol': product.get('symbol', 'N/A'),
-                'Contract_Type': product.get('contract_type', 'N/A'),
-                'State': product.get('state', 'N/A'),
-                'Underlying_Asset': product.get('underlying_asset', {}).get('symbol', 'N/A') if product.get('underlying_asset') else 'N/A',
-                'Maker_Commission_%': maker_rate*100,
-                'Taker_Commission_%': taker_rate*100
-            })
-        return pd.DataFrame(formatted_data)
+        if all(c == "GREEN" for c in colors):
+            return "UP"
+        elif all(c == "RED" for c in colors):
+            return "DOWN"
+        else:
+            return "NEUTRAL"
 
-# ----------------- Streamlit Setup -----------------
-st.set_page_config(page_title="Delta Exchange Dashboard", page_icon="📊", layout="wide")
-st.title("📊 Delta Exchange Dashboard")
 
+# ----------------- Data Loader -----------------
 @st.cache_data(ttl=60)
-def load_data():
+def load_data(resolution: str):
     client = DeltaExchangeAPI()
     tickers = client.get_tickers()
     products = client.get_products()
-    return tickers, products
 
-def apply_filters(df, filters):
-    filtered_df = df.copy()
-    for column, config in filters.items():
-        if config['type'] == 'multiselect' and config['values']:
-            filtered_df = filtered_df[filtered_df[column].isin(config['values'])]
-        elif config['type'] == 'range':
-            if config.get('min') is not None:
-                filtered_df = filtered_df[filtered_df[column] >= config['min']]
-            if config.get('max') is not None:
-                filtered_df = filtered_df[filtered_df[column] <= config['max']]
-        elif config['type'] == 'text' and config.get('value'):
-            filtered_df = filtered_df[filtered_df[column].str.contains(config['value'], case=False, na=False)]
-    return filtered_df
+    if tickers.empty or products.empty:
+        return pd.DataFrame()
+
+    df = tickers.merge(products[['symbol', 'contract_type', 'underlying_asset']], 
+                       left_on="symbol", right_on="symbol", how="left")
+
+    df.rename(columns={
+        "symbol": "Symbol",
+        "contract_type": "Contract_Type",
+        "underlying_asset": "Underlying_Asset",
+        "close": "Last_Price",
+        "change_percent": "24h_Change_%",
+        "volume": "24h_Volume",
+        "open_interest": "Open_Interest"
+    }, inplace=True)
+
+    # Add OI Value & Volume Display
+    df["OI_Value"] = df["Open_Interest"] * df["Last_Price"]
+    df["Volume_Display"] = df["24h_Volume"].apply(lambda x: f"{x:,.0f}")
+
+    # Add last 3 candle signal
+    client = DeltaExchangeAPI()
+    df["Signal"] = df["Symbol"].apply(lambda s: client.get_last3_candle_signal(s, resolution=resolution))
+
+    return df
 
 
-# ----------------- Load Data -----------------
-tickers_df, products_df = load_data()
+# ----------------- Streamlit Dashboard -----------------
+st.set_page_config(page_title="Delta Exchange Dashboard", layout="wide")
+st.title("📊 Delta Exchange Market Dashboard")
 
-# ----------------- Sidebar Filters -----------------
+# Sidebar Filters
 st.sidebar.header("Filters")
-symbol_filter = st.sidebar.text_input("Search Symbol")
-contract_filter = st.sidebar.multiselect("Contract Type", tickers_df['Contract_Type'].unique() if not tickers_df.empty else [])
-asset_filter = st.sidebar.multiselect("Underlying Asset", tickers_df['Underlying_Asset'].unique() if not tickers_df.empty else [])
-price_min, price_max = st.sidebar.slider("Price Range ($)", float(tickers_df['Last_Price'].min()), float(tickers_df['Last_Price'].max()), (float(tickers_df['Last_Price'].min()), float(tickers_df['Last_Price'].max())))
-volume_min = st.sidebar.number_input("Minimum Volume ($)", min_value=0.0, value=0.0, step=1000.0)
 
-# Filter by number of digits in 24h_Volume
-digit_filter_options = {"All": 0, ">=1K": 1e3, ">=10K": 1e4, ">=100K": 1e5, ">=1M": 1e6, ">=10M": 1e7, ">=100M": 1e8, ">=1B": 1e9}
-digit_filter = st.sidebar.selectbox("24h Volume Digit Filter", list(digit_filter_options.keys()))
+# Timeframe selector
+resolution = st.sidebar.selectbox("Candle Timeframe", ["1m", "5m", "15m", "1h", "4h", "1d"], index=0)
 
-# Sort by 24h Change %
-sort_order = st.sidebar.radio("Sort by 24h Change %", ["None", "Ascending", "Descending"])
+# Load Data
+df = load_data(resolution)
 
-# ----------------- Apply Filters -----------------
-filters = {}
-if symbol_filter:
-    filters['Symbol'] = {'type':'text','value':symbol_filter}
-if contract_filter:
-    filters['Contract_Type'] = {'type':'multiselect','values':contract_filter}
-if asset_filter:
-    filters['Underlying_Asset'] = {'type':'multiselect','values':asset_filter}
-filters['Last_Price'] = {'type':'range','min':price_min,'max':price_max}
-if volume_min > 0:
-    filters['24h_Volume'] = {'type':'range','min':volume_min,'max':None}
+if not df.empty:
+    # Symbol filter
+    symbols = st.sidebar.multiselect("Select Symbols", options=df["Symbol"].unique(), default=[])
+    if symbols:
+        df = df[df["Symbol"].isin(symbols)]
 
-filtered_df = apply_filters(tickers_df, filters)
+    # Contract type filter
+    contract_types = st.sidebar.multiselect("Select Contract Types", options=df["Contract_Type"].unique(), default=[])
+    if contract_types:
+        df = df[df["Contract_Type"].isin(contract_types)]
 
-# Apply number of digits filter
-if digit_filter != "All":
-    min_val = digit_filter_options[digit_filter]
-    filtered_df = filtered_df[filtered_df['24h_Volume'] <= min_val]
+    # Underlying asset filter
+    assets = st.sidebar.multiselect("Select Underlying Assets", options=df["Underlying_Asset"].unique(), default=[])
+    if assets:
+        df = df[df["Underlying_Asset"].isin(assets)]
 
-# Apply sorting
-if sort_order == "Ascending":
-    filtered_df = filtered_df.sort_values('24h_Change_%', ascending=True)
-elif sort_order == "Descending":
-    filtered_df = filtered_df.sort_values('24h_Change_%', ascending=False)
+    # 24h Change sort
+    sort_order = st.sidebar.radio("Sort by 24h Change %", ["None", "Ascending", "Descending"], index=0)
+    if sort_order == "Ascending":
+        df = df.sort_values(by="24h_Change_%", ascending=True)
+    elif sort_order == "Descending":
+        df = df.sort_values(by="24h_Change_%", ascending=False)
 
+    # 24h Volume Range Filter
+    min_vol, max_vol = st.sidebar.slider("24h Volume Range", 
+                                         min_value=int(df["24h_Volume"].min()), 
+                                         max_value=int(df["24h_Volume"].max()), 
+                                         value=(int(df["24h_Volume"].min()), int(df["24h_Volume"].max())))
+    df = df[(df["24h_Volume"] >= min_vol) & (df["24h_Volume"] <= max_vol)]
 
-#main-Data
-st.header("Market Data")
-st.dataframe(filtered_df[['Symbol','Contract_Type','Last_Price','24h_Change_%','24h_Volume','Volume_Display','Open_Interest','OI_Value','Underlying_Asset']], height=500)
-st.markdown(f"**Last Updated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    # Signal Filter (UP/DOWN/NEUTRAL)
+    signals = st.sidebar.multiselect("Select Signals", options=["UP", "DOWN", "NEUTRAL"], default=[])
+    if signals:
+        df = df[df["Signal"].isin(signals)]
+
+    # Show Table
+    st.subheader("Market Data")
+    st.dataframe(
+        df[['Symbol','Contract_Type','Last_Price','24h_Change_%','24h_Volume',
+            'Volume_Display','Open_Interest','OI_Value','Underlying_Asset','Signal']],
+        height=600
+    )
+else:
+    st.error("⚠️ Failed to load data from Delta Exchange API.")
