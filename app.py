@@ -5,7 +5,6 @@ import hashlib
 import hmac
 import time
 from typing import Optional, List, Dict
-import plotly.express as px
 from datetime import datetime
 
 # ----------------- Delta Exchange API -----------------
@@ -159,17 +158,6 @@ def apply_filters(df, filters):
             filtered_df = filtered_df[filtered_df[column].str.contains(config['value'], case=False, na=False)]
     return filtered_df
 
-def create_price_chart(df):
-    fig = px.bar(df.head(20), x='Symbol', y='Last_Price', color='24h_Change_%',
-                 color_continuous_scale=['red','yellow','green'], title="Top 20 Assets by Price")
-    fig.update_layout(xaxis_tickangle=45)
-    return fig
-
-def create_volume_chart(df):
-    top_volume = df.nlargest(15, '24h_Volume')
-    fig = px.bar(top_volume, x='Symbol', y='24h_Volume', title="Top 15 Assets by 24h Volume")
-    fig.update_layout(xaxis_tickangle=45)
-    return fig
 
 # ----------------- Load Data -----------------
 tickers_df, products_df = load_data()
