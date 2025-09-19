@@ -206,7 +206,7 @@ def main():
     
     # Digit range filter
     min_digits = st.sidebar.number_input("Minimum Last Price ($)", min_value=0.0, value=0.0, step=0.0001)
-    max_digits = st.sidebar.number_input("Maximum Last Price ($)", min_value=0.0, value=float('inf'), step=0.0001)
+    max_digits = st.sidebar.number_input("Maximum Last Price ($)", min_value=0.0, value=1000000.0, step=0.0001)
     
     # Sort order
     sort_order = st.sidebar.selectbox("Sort 24h Change %", ["Ascending", "Descending"])
