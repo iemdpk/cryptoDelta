@@ -8,7 +8,7 @@ from typing import Optional, List, Dict
 
 # Delta Exchange API Client
 class DeltaExchangeAPI:
-    def _init_(self, api_key: Optional[str] = None, api_secret: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None):
         self.base_url = "https://api.delta.exchange"
         self.api_key = api_key
         self.api_secret = api_secret
@@ -134,15 +134,11 @@ class DeltaExchangeAPI:
             st.warning(f"Insufficient candles for {symbol}: {len(candles)} received")
             return {"trend": "NEUTRAL", "sma_5": "0.0000", "sma_10": "0.0000", "sma_signal": "NEUTRAL"}
         
-        # Extract close prices
         close_prices = [self._safe_float(c.get("close")) for c in candles]
         current_price = close_prices[-1] if close_prices else 0
-        
-        # Calculate SMAs
         sma_5 = sum(close_prices[-5:]) / 5 if len(close_prices) >= 5 else 0
         sma_10 = sum(close_prices) / len(close_prices) if close_prices else 0
         
-        # SMA Signal Analysis
         sma_signal = "NEUTRAL"
         if current_price > 0 and sma_5 > 0 and sma_10 > 0:
             if current_price > sma_5 > sma_10:
@@ -154,10 +150,8 @@ class DeltaExchangeAPI:
             elif current_price < sma_5 and sma_5 > sma_10:
                 sma_signal = "MIXED_DOWN"
         
-        # Use last 5 candles for trend analysis
         candles = candles[-5:]
-        greens = 0
-        reds = 0
+        greens, reds = 0, 0
         for c in candles:
             close = self._safe_float(c.get("close"))
             open_price = self._safe_float(c.get("open"))
@@ -166,7 +160,6 @@ class DeltaExchangeAPI:
             elif close < open_price:
                 reds += 1
         
-        # More detailed trend analysis
         trend = "NEUTRAL"
         if greens >= 4:
             trend = "STRONG_UP"
@@ -185,7 +178,6 @@ class DeltaExchangeAPI:
         }
 
     def _format_volume_short(self, volume: float) -> str:
-        """Convert volume to short format with k, m, b suffixes."""
         if volume >= 1_000_000_000:
             return f"{volume / 1_000_000_000:.1f}b"
         elif volume >= 1_000_000:
@@ -208,18 +200,8 @@ class DeltaExchangeAPI:
                 low_price = self._safe_float(ticker.get('low', 0))
                 volume = self._safe_float(ticker.get('volume', 0))
                 
-                if open_price:
-                    change_pct = ((close_price - open_price) / open_price) * 100
-                else:
-                    change_pct = 0
-                
-                # Calculate price volatility (high-low range as % of close)
-                if close_price:
-                    volatility = ((high_price - low_price) / close_price) * 100
-                else:
-                    volatility = 0
-                
-                # Get trend and SMA data
+                change_pct = ((close_price - open_price) / open_price) * 100 if open_price else 0
+                volatility = ((high_price - low_price) / close_price) * 100 if close_price else 0
                 trend_sma_data = self.get_trend_and_sma(symbol)
                 time.sleep(0.5)
                 
@@ -237,7 +219,6 @@ class DeltaExchangeAPI:
                     '24h_Volume_Short': self._format_volume_short(volume),
                     'Trend_5x5': trend_sma_data['trend']
                 })
-                # Update progress bar
                 progress_value = int((i + 1) / total_tickers * 100)
                 progress_bar.progress(progress_value, text=f"Formatting ticker {i + 1}/{total_tickers}...")
             except Exception as e:
@@ -260,79 +241,48 @@ def main():
     st.title("Delta Exchange Perpetual Futures Data - Enhanced")
     st.write("Now analyzing trends based on last 5 candles from 10 fetched candles")
     
-    # Initialize client
     client = DeltaExchangeAPI()
-    
-    # Fetch data
-    progress_bar = st.progress(0, text="Fetching perpetual futures data...")
-    progress_bar.progress(50, text="Processing perpetual futures data...")
     df = client.get_perpetual_data()
-    progress_bar.progress(100, text="Perpetual futures data fetched successfully!")
-    progress_bar.empty()
-    
     if df.empty:
         st.error("No data available")
         return
     
-    # Create filters
+    # Filters
     st.sidebar.header("Filters")
-    
-    # Price range filter
     min_price = st.sidebar.number_input("Minimum Last Price", min_value=0.0, value=0.0, step=0.0001)
     max_price = st.sidebar.number_input("Maximum Last Price", min_value=0.0, value=1000000.0, step=0.0001)
-    
-    # 24h Change filter
     min_change = st.sidebar.number_input("Minimum 24h Change (%)", value=-100.0, step=0.1)
     max_change = st.sidebar.number_input("Maximum 24h Change (%)", value=100.0, step=0.1)
-    
-    # Volume filter
     min_volume = st.sidebar.number_input("Minimum 24h Volume", min_value=0.0, value=0.0, step=1000.0)
     max_volume = st.sidebar.number_input("Maximum 24h Volume", min_value=0.0, value=1000000000.0, step=1000.0)
-    
-    # Volatility filter
     min_volatility = st.sidebar.number_input("Minimum Volatility (%)", min_value=0.0, value=0.0, step=0.1)
     max_volatility = st.sidebar.number_input("Maximum Volatility (%)", min_value=0.0, value=100.0, step=0.1)
-    
-    # Trend filter
     trend_options = st.sidebar.multiselect(
         "Filter by Trend (5-candle analysis)",
         ["STRONG_UP", "UP", "NEUTRAL", "DOWN", "STRONG_DOWN"],
         default=["STRONG_UP", "UP", "NEUTRAL", "DOWN", "STRONG_DOWN"]
     )
-    
-    # SMA Signal filter
     sma_signal_options = st.sidebar.multiselect(
         "Filter by SMA Signal",
         ["BULLISH", "BEARISH", "MIXED_UP", "MIXED_DOWN", "NEUTRAL"],
         default=["BULLISH", "BEARISH", "MIXED_UP", "MIXED_DOWN", "NEUTRAL"]
     )
-    
-    # Symbol name filter
     symbol_filter = st.sidebar.text_input("Filter by Symbol (contains)", value="")
-    
-    # Sort options
     sort_by = st.sidebar.selectbox(
         "Sort by", 
         ["24h_Change", "Last_Price", "24h_Volume", "Volatility_24h", "SMA_5", "SMA_10", "Name"]
     )
     sort_order = st.sidebar.selectbox("Sort Order", ["Descending", "Ascending"])
     
-    # Apply filters
+    # Filtering
     filtered_df = df.copy()
+    filtered_df['Last_Price_num'] = filtered_df['Last_Price'].astype(float)
+    filtered_df['24h_Change_num'] = filtered_df['24h_Change'].astype(float)
+    filtered_df['24h_Volume_num'] = filtered_df['24h_Volume'].astype(float)
+    filtered_df['Volatility_24h_num'] = filtered_df['Volatility_24h'].astype(float)
+    filtered_df['SMA_5_num'] = filtered_df['SMA_5'].astype(float)
+    filtered_df['SMA_10_num'] = filtered_df['SMA_10'].astype(float)
     
-    # Convert columns to numeric for filtering
-    try:
-        filtered_df['Last_Price_num'] = filtered_df['Last_Price'].astype(float)
-        filtered_df['24h_Change_num'] = filtered_df['24h_Change'].astype(float)
-        filtered_df['24h_Volume_num'] = filtered_df['24h_Volume'].astype(float)
-        filtered_df['Volatility_24h_num'] = filtered_df['Volatility_24h'].astype(float)
-        filtered_df['SMA_5_num'] = filtered_df['SMA_5'].astype(float)
-        filtered_df['SMA_10_num'] = filtered_df['SMA_10'].astype(float)
-    except ValueError as e:
-        st.error(f"Error converting columns to numeric: {e}")
-        return
-    
-    # Apply all filters
     filtered_df = filtered_df[
         (filtered_df['Last_Price_num'] >= min_price) & 
         (filtered_df['Last_Price_num'] <= max_price) &
@@ -345,107 +295,55 @@ def main():
         (filtered_df['Trend_5x5'].isin(trend_options)) &
         (filtered_df['SMA_Signal'].isin(sma_signal_options))
     ]
-    
-    # Symbol name filter
     if symbol_filter:
         filtered_df = filtered_df[filtered_df['Name'].str.contains(symbol_filter, case=False, na=False)]
     
-    # Apply sorting
     sort_column = f"{sort_by}_num" if f"{sort_by}_num" in filtered_df.columns else sort_by
-    if sort_column == "Name_num":
-        sort_column = "Name"
-    
     ascending = sort_order == "Ascending"
     filtered_df = filtered_df.sort_values(sort_column, ascending=ascending)
     
-    # Drop temporary numeric columns
-    numeric_cols_to_drop = ['Last_Price_num', '24h_Change_num', '24h_Volume_num', 'Volatility_24h_num', 'SMA_5_num', 'SMA_10_num']
-    filtered_df = filtered_df.drop([col for col in numeric_cols_to_drop if col in filtered_df.columns], axis=1)
+    # Drop helper columns
+    numeric_cols = ['Last_Price_num','24h_Change_num','24h_Volume_num','Volatility_24h_num','SMA_5_num','SMA_10_num']
+    filtered_df = filtered_df.drop([c for c in numeric_cols if c in filtered_df.columns], axis=1)
     
-    # Display summary statistics
+    # Metrics
     col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Total Records", len(filtered_df))
-    with col2:
-        bullish_count = len(filtered_df[filtered_df['SMA_Signal'] == 'BULLISH'])
-        st.metric("Bullish SMA Signals", bullish_count)
-    with col3:
-        bearish_count = len(filtered_df[filtered_df['SMA_Signal'] == 'BEARISH'])
-        st.metric("Bearish SMA Signals", bearish_count)
+    with col1: st.metric("Total Records", len(filtered_df))
+    with col2: st.metric("Bullish SMA Signals", len(filtered_df[filtered_df['SMA_Signal']=="BULLISH"]))
+    with col3: st.metric("Bearish SMA Signals", len(filtered_df[filtered_df['SMA_Signal']=="BEARISH"]))
     with col4:
-        if len(filtered_df) > 0:
+        if len(filtered_df)>0:
             avg_change = filtered_df['24h_Change'].astype(float).mean()
             st.metric("Avg 24h Change", f"{avg_change:+.2f}%")
     
-    # Display filtered data
-    st.write("### Filtered Perpetual Futures Data")
-    
-    # Color code trends and SMA signals for better visualization
+    # Color functions
     def color_trend(val):
-        return ''
-        
+        if val == "STRONG_UP": return "background-color: lightgreen"
+        if val == "UP": return "background-color: palegreen"
+        if val == "STRONG_DOWN": return "background-color: lightcoral"
+        if val == "DOWN": return "background-color: salmon"
+        return ""
+    
     def color_sma_signal(val):
-        return ''
-    # Select only the desired columns for display
-    selected_columns = ["Name", "Last_Price", "SMA_Signal", "Trend_5x5", "24h_Change", "24h_Volume", "24h_Volume_Short"]
-    # Ensure only existing columns are selected to avoid KeyError
-    selected_columns = [col for col in selected_columns if col in filtered_df.columns]
-    styled_df = filtered_df[selected_columns].style.applymap(color_trend, subset=['Trend_5x5']).applymap(color_sma_signal, subset=['SMA_Signal'])
+        if val == "BULLISH": return "color: green; font-weight: bold"
+        if val == "BEARISH": return "color: red; font-weight: bold"
+        if "MIXED" in val: return "color: orange; font-weight: bold"
+        return ""
     
-    # Display the DataFrame with only the selected columns
-    st.dataframe(
-        styled_df,
-        use_container_width=False,
-        column_config={
-            "Name": st.column_config.TextColumn("Symbol"),
-            "Last_Price": st.column_config.NumberColumn("Last Price", format="%.4f"),
-            "SMA_Signal": st.column_config.TextColumn("SMA Signal"),
-            "Trend_5x5": st.column_config.TextColumn("5-Candle Trend"),
-            "24h_Change": st.column_config.NumberColumn("24h Change (%)", format="%+.2f"),
-            "24h_Volume": st.column_config.NumberColumn("24h Volume", format="%.0f"),
-            "24h_Volume_Short": st.column_config.TextColumn("Volume (Short)"),
-        }
-    )
+    selected_columns = ["Name","Last_Price","SMA_Signal","Trend_5x5","24h_Change","24h_Volume","24h_Volume_Short"]
+    selected_columns = [c for c in selected_columns if c in filtered_df.columns]
+    styled_df = filtered_df[selected_columns].style.applymap(color_trend, subset=["Trend_5x5"]).applymap(color_sma_signal, subset=["SMA_Signal"])
+    st.dataframe(styled_df, use_container_width=True)
     
-    # Display trend and SMA signal distributions
+    # Charts
     if len(filtered_df) > 0:
-        col1, col2 = st.columns(2)
-        
-        with col1:
+        c1, c2 = st.columns(2)
+        with c1:
             st.write("### Trend Distribution")
-            trend_counts = filtered_df['Trend_5x5'].value_counts()
-            st.bar_chart(trend_counts)
-        
-        with col2:
+            st.bar_chart(filtered_df['Trend_5x5'].value_counts())
+        with c2:
             st.write("### SMA Signal Distribution")
-            sma_counts = filtered_df['SMA_Signal'].value_counts()
-            st.bar_chart(sma_counts)
-    
-    st.write("---")
-    st.write("*Legend:*")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.write("*Candle Trends:*")
-        st.write("- *STRONG_UP*: 4+ green candles out of 5")
-        st.write("- *UP*: 3 green candles, ≤2 red candles")
-        st.write("- *STRONG_DOWN*: 4+ red candles out of 5")
-        st.write("- *DOWN*: 3 red candles, ≤2 green candles")
-        st.write("- *NEUTRAL*: Mixed pattern")
-    
-    with col2:
-        st.write("*SMA Signals:*")
-        st.write("- *BULLISH*: Price > SMA(5) > SMA(10)")
-        st.write("- *BEARISH*: Price < SMA(5) < SMA(10)")
-        st.write("- *MIXED_UP*: Price > SMA(5), but SMA(5) < SMA(10)")
-        st.write("- *MIXED_DOWN*: Price < SMA(5), but SMA(5) > SMA(10)")
-        st.write("- *NEUTRAL*: Other combinations")
-    
-    st.write("*Technical Details:*")
-    st.write("- *SMA(5)*: Simple Moving Average of last 5 candles")
-    st.write("- *SMA(10)*: Simple Moving Average of all 10 candles")
-    st.write("- *Volatility*: (High - Low) / Close Price × 100%")
+            st.bar_chart(filtered_df['SMA_Signal'].value_counts())
 
-if __name__ == "__main__":  
+if __name__ == "__main__":
     main()
