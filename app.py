@@ -94,7 +94,7 @@ class DeltaExchangeAPI:
     def get_perpetual_data(self) -> pd.DataFrame:
         return self.get_tickers(contract_types="perpetual_futures")
 
-    def get_candles(self, symbol: str, resolution: str = "5m", limit: int = 3) -> List[Dict]:
+    def get_candles(self, symbol: str, resolution: str = "5m", limit: int = 5) -> List[Dict]:
         if symbol not in self.valid_symbols:
             st.error(f"Invalid symbol: {symbol}. Valid symbols: {self.valid_symbols[:10]}...")
             return []
@@ -129,9 +129,12 @@ class DeltaExchangeAPI:
             return []
 
     def get_trend_last3(self, symbol: str) -> str:
-        candles = self.get_candles(symbol, resolution="5m", limit=3)
+        candles = self.get_candles(symbol, resolution="5m", limit=5)
         if len(candles) < 3:
+            st.warning(f"Insufficient candles for {symbol}: {len(candles)} received")
             return "NEUTRAL"
+        # Use first 3 candles
+        candles = candles[:3]
         greens = 0
         reds = 0
         for c in candles:
@@ -177,10 +180,10 @@ class DeltaExchangeAPI:
                 time.sleep(0.5)
                 formatted_data.append({
                     'Name': str(symbol),
-                    'Last_Price': f"{close_price:,.4f}",  # Removed $
-                    '24h_Change': f"{change_pct:+.2f}",   # Removed %
-                    '24h_Volume': f"{volume:,.0f}",       # Removed $
-                    '24h_Volume_Short': self._format_volume_short(volume),  # New column
+                    'Last_Price': f"{close_price:.4f}",  # No commas, no $
+                    '24h_Change': f"{change_pct:+.2f}",  # No %
+                    '24h_Volume': f"{volume:.0f}",       # No commas, no $
+                    '24h_Volume_Short': self._format_volume_short(volume),  # Short format
                     'Trend_3x3': trend
                 })
                 # Update progress bar
@@ -233,14 +236,23 @@ def main():
     filtered_df = df.copy()
     
     # Convert Last_Price to float for filtering
-    filtered_df['Last_Price_num'] = filtered_df['Last_Price'].str.replace(',', '').astype(float)
+    try:
+        filtered_df['Last_Price_num'] = filtered_df['Last_Price'].astype(float)
+    except ValueError as e:
+        st.error(f"Error converting Last_Price to float: {e}")
+        return
+    
     filtered_df = filtered_df[
         (filtered_df['Last_Price_num'] >= min_digits) & 
         (filtered_df['Last_Price_num'] <= max_digits)
     ]
     
     # Convert 24h_Change to float for sorting
-    filtered_df['24h_Change_num'] = filtered_df['24h_Change'].astype(float)
+    try:
+        filtered_df['24h_Change_num'] = filtered_df['24h_Change'].astype(float)
+    except ValueError as e:
+        st.error(f"Error converting 24h_Change to float: {e}")
+        return
     
     # Apply sorting
     if sort_order == "Ascending":
