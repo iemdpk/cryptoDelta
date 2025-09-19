@@ -407,9 +407,9 @@ def main():
     
     # Apply styling
     styled_df = filtered_df.style.applymap(color_trend, subset=['Trend_5x5']).applymap(color_sma_signal, subset=['SMA_Signal'])
-    
+    selected_columns = ["Name", "Last_Price", "SMA_Signal", "Trend_5x5", "24h_Change", "24h_Volume", "24h_Volume_Short"]    
     st.dataframe(
-        styled_df,
+        styled_df[selected_columns],
         use_container_width=True,
         column_config={
             "Name": st.column_config.TextColumn("Symbol", width="medium"),
