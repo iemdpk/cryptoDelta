@@ -12,8 +12,9 @@ class DeltaExchangeAPI:
         self.base_url = "https://api.delta.exchange"
         self.api_key = api_key
         self.api_secret = api_secret
-        with st.spinner("Fetching valid symbols..."):
-            self.valid_symbols = self._get_valid_symbols()
+        progress_bar = st.progress(0, text="Initializing: Fetching valid symbols...")
+        self.valid_symbols = self._get_valid_symbols()
+        progress_bar.progress(100, text="Valid symbols fetched successfully!")
 
     def generate_signature(self, secret: str, message: str) -> str:
         message = bytes(message, 'utf-8')
@@ -44,10 +45,13 @@ class DeltaExchangeAPI:
         if query_string:
             query_string = "?" + query_string
         headers = self.get_headers("GET", path, query_string)
+        progress_bar = st.progress(0, text="Fetching valid symbols...")
         try:
+            progress_bar.progress(50, text="Sending request for symbols...")
             response = requests.get(f"{self.base_url}{path}", params=params, headers=headers, timeout=30)
             response.raise_for_status()
             data = response.json()
+            progress_bar.progress(100, text="Symbols fetched successfully!")
             if data.get('success'):
                 return [ticker.get('symbol', 'N/A') for ticker in data['result']]
             else:
@@ -55,6 +59,7 @@ class DeltaExchangeAPI:
                 return []
         except requests.exceptions.RequestException as e:
             st.error(f"Request Error fetching symbols: {e}")
+            progress_bar.empty()
             return []
 
     def get_tickers(self, contract_types: Optional[str] = None) -> pd.DataFrame:
@@ -66,19 +71,22 @@ class DeltaExchangeAPI:
         if query_string:
             query_string = "?" + query_string
         headers = self.get_headers("GET", path, query_string)
-        with st.spinner("Fetching ticker data..."):
-            try:
-                response = requests.get(f"{self.base_url}{path}", params=params, headers=headers, timeout=30)
-                response.raise_for_status()
-                data = response.json()
-                if data.get('success'):
-                    return self._format_ticker_data(data['result'])
-                else:
-                    st.error(f"API Error: {data}")
-                    return pd.DataFrame()
-            except requests.exceptions.RequestException as e:
-                st.error(f"Request Error: {e}")
+        progress_bar = st.progress(0, text="Fetching ticker data...")
+        try:
+            progress_bar.progress(50, text="Sending request for tickers...")
+            response = requests.get(f"{self.base_url}{path}", params=params, headers=headers, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            progress_bar.progress(100, text="Ticker data fetched successfully!")
+            if data.get('success'):
+                return self._format_ticker_data(data['result'])
+            else:
+                st.error(f"API Error: {data}")
                 return pd.DataFrame()
+        except requests.exceptions.RequestException as e:
+            st.error(f"Request Error: {e}")
+            progress_bar.empty()
+            return pd.DataFrame()
 
     def get_perpetual_data(self) -> pd.DataFrame:
         return self.get_tickers(contract_types="perpetual_futures")
@@ -99,19 +107,22 @@ class DeltaExchangeAPI:
         }
         query_string = "&".join([f"{k}={v}" for k, v in params.items()])
         headers = self.get_headers("GET", path, query_string)
-        with st.spinner(f"Fetching candles for {symbol}..."):
-            try:
-                response = requests.get(f"{self.base_url}{path}", params=params, headers=headers, timeout=30)
-                response.raise_for_status()
-                data = response.json()
-                if data.get("success"):
-                    return data["result"]
-                else:
-                    st.error(f"API Error for {symbol}: {data}")
-                    return []
-            except requests.exceptions.RequestException as e:
-                st.error(f"Request Error for {symbol}: {e}")
+        progress_bar = st.progress(0, text=f"Fetching candles for {symbol}...")
+        try:
+            progress_bar.progress(50, text=f"Sending candle request for {symbol}...")
+            response = requests.get(f"{self.base_url}{path}", params=params, headers=headers, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            progress_bar.progress(100, text=f"Candles for {symbol} fetched successfully!")
+            if data.get("success"):
+                return data["result"]
+            else:
+                st.error(f"API Error for {symbol}: {data}")
                 return []
+        except requests.exceptions.RequestException as e:
+            st.error(f"Request Error for {symbol}: {e}")
+            progress_bar.empty()
+            return []
 
     def get_trend_last3(self, symbol: str) -> str:
         candles = self.get_candles(symbol, resolution="5m", limit=3)
@@ -135,7 +146,9 @@ class DeltaExchangeAPI:
 
     def _format_ticker_data(self, tickers: List[Dict]) -> pd.DataFrame:
         formatted_data = []
-        for ticker in tickers:
+        total_tickers = len(tickers)
+        progress_bar = st.progress(0, text="Formatting ticker data...")
+        for i, ticker in enumerate(tickers):
             try:
                 symbol = ticker.get('symbol', 'N/A')
                 close_price = self._safe_float(ticker.get('close', 0))
@@ -154,9 +167,13 @@ class DeltaExchangeAPI:
                     '24h_Volume': f"${volume:,.0f}",
                     'Trend_3x3': trend
                 })
+                # Update progress bar
+                progress_value = int((i + 1) / total_tickers * 100)
+                progress_bar.progress(progress_value, text=f"Formatting ticker {i + 1}/{total_tickers}...")
             except Exception as e:
                 st.error(f"Error processing ticker {symbol}: {e}")
                 continue
+        progress_bar.progress(100, text="Ticker data formatting complete!")
         return pd.DataFrame(formatted_data)
 
     def _safe_float(self, value) -> float:
@@ -175,8 +192,10 @@ def main():
     client = DeltaExchangeAPI()
     
     # Fetch data
-    with st.spinner("Fetching perpetual futures data..."):
-        df = client.get_perpetual_data()
+    progress_bar = st.progress(0, text="Fetching perpetual futures data...")
+    progress_bar.progress(50, text="Processing perpetual futures data...")
+    df = client.get_perpetual_data()
+    progress_bar.progress(100, text="Perpetual futures data fetched successfully!")
     
     if df.empty:
         st.error("No data available")
