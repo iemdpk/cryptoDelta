@@ -94,7 +94,7 @@ class DeltaExchangeAPI:
     def get_perpetual_data(self) -> pd.DataFrame:
         return self.get_tickers(contract_types="perpetual_futures")
 
-    def get_candles(self, symbol: str, resolution: str = "5m", limit: int = 10) -> List[Dict]:
+    def get_candles(self, symbol: str, resolution: str = "1m", limit: int = 10) -> List[Dict]:
         if symbol not in self.valid_symbols:
             st.error(f"Invalid symbol: {symbol}. Valid symbols: {self.valid_symbols[:10]}...")
             return []
@@ -129,7 +129,7 @@ class DeltaExchangeAPI:
             return []
 
     def get_trend_and_sma(self, symbol: str) -> Dict[str, str]:
-        candles = self.get_candles(symbol, resolution="5m", limit=10)
+        candles = self.get_candles(symbol, resolution="1m", limit=10)
         if len(candles) < 5:
             st.warning(f"Insufficient candles for {symbol}: {len(candles)} received")
             return {"trend": "NEUTRAL", "sma_5": "0.0000", "sma_10": "0.0000", "sma_signal": "NEUTRAL"}
